@@ -21,11 +21,16 @@ type FlagUpdate struct {
 
 // Subscribe listens to the Helios update stream and calls handler for every
 // "flag_update" event. It blocks until ctx is cancelled, so run it in its own
-// goroutine:
+// goroutine.
+//
+// A flag_update event is a change notification, not authoritative flag state.
+// Treat it as a signal to evaluate the flag again (Evaluate, BoolVariation,
+// ...) rather than acting on FlagUpdate.Enabled directly, because the value a
+// subject receives also depends on targeting rules and rollouts:
 //
 //	go func() {
 //		err := client.Subscribe(ctx, func(u helios.FlagUpdate) {
-//			cache.Invalidate(u.FlagKey)
+//			cache.Invalidate(u.FlagKey) // or re-evaluate u.FlagKey now
 //		})
 //		log.Println("helios stream stopped:", err)
 //	}()

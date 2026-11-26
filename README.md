@@ -76,15 +76,23 @@ or the evaluation reason.
 ```go
 go func() {
 	err := client.Subscribe(ctx, func(u helios.FlagUpdate) {
-		log.Printf("flag %s changed: enabled=%v version=%d", u.FlagKey, u.Enabled, u.Version)
+		// A flag_update is a signal, not the new state: evaluate again.
+		on := client.BoolVariation(ctx, u.FlagKey, subject, false)
+		log.Printf("flag %s changed (version %d), now on=%v", u.FlagKey, u.Version, on)
 	})
 	log.Println("stream stopped:", err)
 }()
 ```
 
+A `flag_update` event only tells you that a flag changed. It is **not**
+authoritative state: the value a subject gets also depends on targeting rules
+and rollouts, so do not act on `u.Enabled` alone. Call `Evaluate` or a
+`*Variation` helper again (or invalidate your own cache) to get the real value.
+
 `Subscribe` holds a Server-Sent Events connection to Helios, reconnects with
 exponential backoff when it drops, and returns when the context is cancelled or
-the SDK key is rejected.
+the SDK key is rejected. The stream is only a propagation optimization: if it is
+unavailable (HTTP 503), `Evaluate` still works.
 
 ## Options
 
